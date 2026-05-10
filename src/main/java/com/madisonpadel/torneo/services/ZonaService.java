@@ -1,6 +1,7 @@
 package com.madisonpadel.torneo.services;
 
 import com.madisonpadel.torneo.entities.*;
+import com.madisonpadel.torneo.entities.enums.EstadoPartido;
 import com.madisonpadel.torneo.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -108,7 +109,7 @@ public class ZonaService {
                 .pareja2(p2)
                 .dia(DiaTorneo.SABADO) // Por defecto para la prueba
                 .hora(hora)
-                .jugado(false)
+                .estado(EstadoPartido.PENDIENTE)
                 .build();
     }
 }

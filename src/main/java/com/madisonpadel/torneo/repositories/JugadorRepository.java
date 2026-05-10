@@ -9,6 +9,7 @@ import java.util.Optional;
 @Repository
 public interface JugadorRepository extends JpaRepository<Jugador, Long> {
     
-    // Método personalizado: Spring lee el nombre "findByDni" y arma el SQL automáticamente.
-    Optional<Jugador> findByDni(String dni);
+    // Cambiamos "findByDni" por "findByTelefono"
+    Optional<Jugador> findByTelefono(String telefono);
+
 }

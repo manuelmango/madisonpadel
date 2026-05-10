@@ -29,12 +29,12 @@ public class InscripcionService {
                 .orElseThrow(() -> new IllegalArgumentException("La categoría no existe."));
 
         // 2. Buscamos y validamos al Jugador 1
-        Jugador j1 = jugadorRepository.findByDni(dni1)
+        Jugador j1 = jugadorRepository.findByTelefono(dni1)
                 .orElseThrow(() -> new IllegalArgumentException("El jugador con DNI " + dni1 + " no existe."));
         validarNivelParaInscripcion(j1, categoria);
 
         // 3. Buscamos y validamos al Jugador 2
-        Jugador j2 = jugadorRepository.findByDni(dni2)
+        Jugador j2 = jugadorRepository.findByTelefono(dni2)
                 .orElseThrow(() -> new IllegalArgumentException("El jugador con DNI " + dni2 + " no existe."));
         validarNivelParaInscripcion(j2, categoria);
 

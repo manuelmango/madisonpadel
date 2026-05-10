@@ -17,15 +17,13 @@ public class Jugador {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String dni;
+    private String telefono;
 
     @Column(nullable = false)
     private String nombre;
 
     @Column(nullable = false)
     private String apellido;
-
-    private String telefono;
 
     @Enumerated(EnumType.STRING) // Guarda el texto "MASCULINO" en la DB, no el número 0 o 1
     private Genero genero;

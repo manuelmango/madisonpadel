@@ -1,9 +1,11 @@
 package com.madisonpadel.torneo.controllers;
 
+import com.madisonpadel.torneo.dtos.JugadorRequestDTO;
 import com.madisonpadel.torneo.dtos.NuevoJugadorDTO;
 import com.madisonpadel.torneo.entities.Jugador;
 import com.madisonpadel.torneo.services.JugadorService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,14 +15,17 @@ import org.springframework.web.bind.annotation.*;
 public class JugadorController {
 
     private final JugadorService jugadorService;
-
-    // Con @PostMapping indicamos que esta ruta sirve para CREAR datos nuevos
     @PostMapping
-    public ResponseEntity<String> crearJugador(@RequestBody NuevoJugadorDTO request) {
+    public ResponseEntity<?> crearJugador(@RequestBody NuevoJugadorDTO request) {
         try {
+            // Le pasamos la planilla al Service
             Jugador jugadorCreado = jugadorService.crearJugador(request);
-            return ResponseEntity.ok("¡Éxito! Jugador " + jugadorCreado.getNombre() + " " + jugadorCreado.getApellido() + " registrado correctamente.");
+            
+            // Si todo salió bien, devolvemos un 201 Created y los datos del jugador
+            return ResponseEntity.status(HttpStatus.CREATED).body(jugadorCreado);
+            
         } catch (IllegalArgumentException e) {
+            // Si el Service saltó porque el teléfono estaba duplicado, atajamos el error acá
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }

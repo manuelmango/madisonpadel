@@ -5,12 +5,14 @@ import com.madisonpadel.torneo.entities.Genero;
 import com.madisonpadel.torneo.repositories.CategoriaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+@Order(1)
 public class DataInitializer implements CommandLineRunner {
 
     private final CategoriaRepository categoriaRepository;

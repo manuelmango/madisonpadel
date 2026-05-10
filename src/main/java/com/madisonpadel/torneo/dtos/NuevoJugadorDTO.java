@@ -8,7 +8,7 @@ import lombok.Setter;
 @Setter
 public class NuevoJugadorDTO {
     // Solo pedimos los datos necesarios para crear a la persona
-    private String dni;
+    private String telefono;
     private String nombre;
     private String apellido;
     private Genero genero;

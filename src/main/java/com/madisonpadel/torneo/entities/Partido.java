@@ -3,6 +3,7 @@ package com.madisonpadel.torneo.entities;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalTime;
+import com.madisonpadel.torneo.entities.enums.EstadoPartido;
 
 @Entity
 @Table(name = "partidos")
@@ -25,15 +26,40 @@ public class Partido {
     @ManyToOne
     private Pareja pareja2;
 
-    // El resultado (se llena después de jugar)
-    private Integer setsPareja1;
-    private Integer setsPareja2;
-
-    // Programación (Lo que aparece en la matriz)
+    // --- PROGRAMACIÓN ---
     @Enumerated(EnumType.STRING)
     private DiaTorneo dia;
     
     private LocalTime hora;
 
-    private boolean jugado = false;
+    // --- ESTADO DEL PARTIDO ---
+    // Reemplazamos el boolean 'jugado' por algo más completo
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private EstadoPartido estado = EstadoPartido.PENDIENTE;
+
+    // --- RESULTADOS MATEMÁTICOS ---
+    // Inicializamos en 0 para evitar NullPointerExceptions
+    @Builder.Default
+    private Integer setsPareja1 = 0;
+    
+    @Builder.Default
+    private Integer setsPareja2 = 0;
+
+    @Builder.Default
+    private Integer gamesPareja1 = 0;
+
+    @Builder.Default
+    private Integer gamesPareja2 = 0;
+
+    // --- GANADOR ---
+    @ManyToOne
+    @JoinColumn(name = "ganador_id")
+    private Pareja ganador;
+
+    // --- MÉTODOS ÚTILES ---
+    // Este método reemplaza la necesidad de preguntar "if (partido.isJugado())"
+    public boolean estaTerminado() {
+        return this.estado == EstadoPartido.FINALIZADO || this.estado == EstadoPartido.WALKOVER;
+    }
 }

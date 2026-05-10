@@ -1,0 +1,50 @@
+package com.madisonpadel.torneo.services;
+
+import com.madisonpadel.torneo.dtos.ResultadoRequestDTO;
+import com.madisonpadel.torneo.entities.Partido;
+import com.madisonpadel.torneo.entities.enums.EstadoPartido;
+import com.madisonpadel.torneo.repositories.PartidoRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class PartidoService {
+
+    @Autowired
+    private PartidoRepository partidoRepository;
+
+    @Transactional
+    public Partido cargarResultado(Long partidoId, ResultadoRequestDTO resultado) {
+        
+        // 1. Buscamos el partido
+        Partido partido = partidoRepository.findById(partidoId)
+                .orElseThrow(() -> new IllegalArgumentException("El partido no existe."));
+
+        // 2. Validamos que no se esté cargando un partido ya finalizado (opcional, pero buena práctica)
+        if (partido.estaTerminado()) {
+            throw new IllegalStateException("Este partido ya tiene un resultado cargado.");
+        }
+
+        // 3. Guardamos los números
+        partido.setSetsPareja1(resultado.getSetsPareja1());
+        partido.setSetsPareja2(resultado.getSetsPareja2());
+        partido.setGamesPareja1(resultado.getGamesPareja1());
+        partido.setGamesPareja2(resultado.getGamesPareja2());
+
+        // 4. Determinamos automáticamente al ganador
+        if (resultado.getSetsPareja1() > resultado.getSetsPareja2()) {
+            partido.setGanador(partido.getPareja1());
+        } else if (resultado.getSetsPareja2() > resultado.getSetsPareja1()) {
+            partido.setGanador(partido.getPareja2());
+        } else {
+            throw new IllegalArgumentException("Error: En el pádel no existen los empates. Revisá los sets ingresados.");
+        }
+
+        // 5. Cambiamos el estado a FINALIZADO
+        partido.setEstado(EstadoPartido.FINALIZADO);
+
+        // 6. Guardamos y devolvemos
+        return partidoRepository.save(partido);
+    }
+}

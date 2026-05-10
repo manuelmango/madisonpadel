@@ -19,13 +19,13 @@ public class JugadorService {
         
         // 1. Validar duplicados (Regla de negocio)
         // El isPresent() es de Java Optional. Pregunta: ¿Encontraste a alguien con este DNI?
-        if (jugadorRepository.findByDni(dto.getDni()).isPresent()) {
-            throw new IllegalArgumentException("Error: Ya existe un jugador registrado con el DNI " + dto.getDni());
+        if (jugadorRepository.findByTelefono(dto.getTelefono()).isPresent()) {
+            throw new IllegalArgumentException("Error: Ya existe un jugador registrado con el telefono " + dto.getTelefono());
         }
 
         // 2. Si el DNI está libre, armamos la entidad usando el Builder
         Jugador nuevoJugador = Jugador.builder()
-                .dni(dto.getDni())
+                .telefono(dto.getTelefono())
                 .nombre(dto.getNombre())
                 .apellido(dto.getApellido())
                 .genero(dto.getGenero())
