@@ -2,6 +2,8 @@ package com.madisonpadel.torneo.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.time.LocalTime;
 import java.util.List;
 
 @Entity
@@ -20,7 +22,10 @@ public class Zona {
     @ManyToOne
     @JoinColumn(name = "categoria_id")
     private Categoria categoria;
-
+    @Transient
+    private DiaTorneo diaDefecto;
+    @Transient
+    private LocalTime horaDefecto;
     // Las 3 parejas que componen la matriz
     @ManyToMany
     @JoinTable(
