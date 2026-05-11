@@ -18,8 +18,8 @@ public class InscripcionController {
         try {
             // Llamamos a nuestro gerente (el Service) pasándole los datos que llegaron en el JSON
             String resultado = inscripcionService.procesarInscripcion(
-                request.getDniJugador1(), 
-                request.getDniJugador2(), 
+                request.getTelefonoJ1(), 
+                request.getTelefonoJ2(), 
                 request.getIdCategoria()
                 );
 

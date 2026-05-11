@@ -1,5 +1,6 @@
 package com.madisonpadel.torneo.controllers;
 
+import com.madisonpadel.torneo.dtos.ConfiguracionTorneoDTO;
 import com.madisonpadel.torneo.services.PlayoffService;
 import com.madisonpadel.torneo.services.ZonaService;
 import lombok.RequiredArgsConstructor;
@@ -19,9 +20,9 @@ public class TorneoController {
      * aplicando ranking y restricciones horarias.
      */
     @PostMapping("/categorias/{categoriaId}/zonas")
-    public ResponseEntity<?> generarZonas(@PathVariable Long categoriaId) {
+    public ResponseEntity<?> generarZonas(@PathVariable Long categoriaId,@RequestBody ConfiguracionTorneoDTO config ) {
         try {
-            zonaService.generarZonasPorCategoria(categoriaId);
+            zonaService.generarZonasPorCategoria(categoriaId, config);
             return ResponseEntity.ok("Zonas generadas con éxito para la categoría. Se han respetado los rankings y bloqueos horarios.");
         } catch (IllegalArgumentException e) {
             // Caso: La categoría no existe o no tiene suficientes parejas
@@ -37,14 +38,17 @@ public class TorneoController {
      * arma la tabla general y vincula las parejas reales a los playoffs.
      */
     @PostMapping("/playoffs/iniciar-domingo")
-    public ResponseEntity<?> iniciarDomingoPlayoffs() {
+    public ResponseEntity<?> iniciarDomingoPlayoffs(@RequestBody ConfiguracionTorneoDTO config) { // <--- 1. Recibimos el DTO
         try {
-            playoffService.iniciarDomingoDePlayoffs();
-            return ResponseEntity.ok("¡Proceso completado! Las llaves de Playoffs han sido vinculadas con las parejas clasificadas.");
+            // 2. Se lo pasamos al servicio
+            playoffService.generarPlayoffsDomingo(config); 
+            
+            return ResponseEntity.ok("¡Proceso completado! Las llaves de Playoffs han sido vinculadas y los horarios asignados.");
         } catch (IllegalStateException e) {
-            // Caso: Se intentó iniciar el domingo pero faltan resultados de zonas
             return ResponseEntity.status(409).body("Conflicto en el estado del torneo: " + e.getMessage());
         } catch (Exception e) {
+            // Imprimimos el error en consola para que vos puedas debugear si algo falla
+            e.printStackTrace(); 
             return ResponseEntity.internalServerError().body("Ocurrió un error inesperado al armar el cuadro de playoffs.");
         }
     }

@@ -2,11 +2,13 @@ package com.madisonpadel.torneo.services;
 
 import com.madisonpadel.torneo.entities.enums.EstadoPartido;
 import com.madisonpadel.torneo.entities.enums.FasePartido;
+import com.madisonpadel.torneo.dtos.ConfiguracionTorneoDTO;
 import com.madisonpadel.torneo.dtos.PosicionZonaDTO;
 import com.madisonpadel.torneo.entities.DiaTorneo;
 import com.madisonpadel.torneo.entities.DisponibilidadHoraria;
 import com.madisonpadel.torneo.entities.Pareja;
 import com.madisonpadel.torneo.entities.Partido;
+import com.madisonpadel.torneo.entities.Zona;
 import com.madisonpadel.torneo.repositories.ParejaRepository;
 import com.madisonpadel.torneo.repositories.PartidoRepository;
 import com.madisonpadel.torneo.repositories.ZonaRepository;
@@ -28,209 +30,174 @@ import java.util.Collections;
 @RequiredArgsConstructor
 public class PlayoffService {
     private final PartidoRepository partidoRepository;
-    private final DisponibilidadHorariaService disponibilidadHorariaService;
+    private final PlanificadorHorarioService planificadorHorarioService;
     private final ParejaRepository parejaRepository;
     private final ZonaRepository zonaRepository;
 
-    @Transactional
-    public void iniciarDomingoDePlayoffs() {
-        // 1. Contar zonas para saber cuántas parejas clasifican (2 por zona)
-        int cantidadZonas = (int) zonaRepository.count(); 
-        int parejasClasificadas = cantidadZonas * 2; // Clasifican 1ros y 2dos
+    private void acomodarParejasEnCuadro(List<Partido> primeraRonda, List<Pareja> clasificados, int byes) {
+        int indiceClasificados = 0;
+       
+        // --- LA MAGIA DE LOS DOS PUNTEROS ---
+        int arriba = 0; // Apunta al primer renglón
+        int abajo = primeraRonda.size() - 1; // Apunta al último renglón
+        boolean turnoArriba = true; // Alternador
+        // 1. Sentamos a los privilegiados (Byes) directamente en la SEGUNDA ronda
+        for (int i = 0; i < byes; i++) {
+            Pareja privilegiada = clasificados.get(indiceClasificados++);
+            // Elegimos de qué lado del árbol sacar el partido
+            int indicePartido = turnoArriba ? arriba++ : abajo--;
+            turnoArriba = !turnoArriba; // Cambiamos el turno para la próxima pareja
+            Partido partidoPrevia = primeraRonda.get(indicePartido);
+            Partido siguiente = partidoPrevia.getSiguientePartido();
 
-        // 2. NUEVO: CREAR EL ESQUELETO (Si no existen ya partidos de playoff)
-        long yaExistenPlayoffs = partidoRepository.countByFaseNot(FasePartido.ZONA);
-        if (yaExistenPlayoffs == 0) {
-            System.out.println("Construyendo el cuadro para " + parejasClasificadas + " parejas...");
-            generarCuadroDinamico(parejasClasificadas);
-        }
-
-        // 3. Traer la logística del club
-        DisponibilidadHoraria dispDomingo = disponibilidadHorariaService.obtenerPorDia(DiaTorneo.DOMINGO);
-        
-        // 4. AHORA SÍ: Traemos los partidos que acabamos de crear en el paso anterior
-        List<Partido> partidosAProgramar = partidoRepository.findByEstado(EstadoPartido.PENDIENTE)
-                .stream()
-                .filter(p -> p.getFase() != FasePartido.ZONA)
-                .filter(p -> p.getPareja1() == null)
-                .toList();
-
-        LocalTime horaActualTurno = dispDomingo.getHoraInicio();
-        int canchaActual = 1;
-
-        for (Partido partido : partidosAProgramar) {
-            Pareja p1 = buscarParejaPorOrigen(partido.getOrigenPareja1(), cantidadZonas);
-            Pareja p2 = buscarParejaPorOrigen(partido.getOrigenPareja2(), cantidadZonas);
+            if (siguiente.getPareja1() == null) siguiente.setPareja1(privilegiada);
+            else siguiente.setPareja2(privilegiada);
             
-            if (p1 != null && p2 != null) {
-                partido.setPareja1(p1);
-                partido.setPareja2(p2);
-                partido.setNumeroCancha(canchaActual);
-                partido.setHora(horaActualTurno);
-                partido.setDia(DiaTorneo.DOMINGO);
-                partido.setEstado(EstadoPartido.PENDIENTE);
-
-                canchaActual++;
-                if (canchaActual > dispDomingo.getCantidadCanchas()) {
-                    canchaActual = 1;
-                    horaActualTurno = horaActualTurno.plusMinutes(dispDomingo.getDuracionTurnoMinutos());
-                }
-                partidoRepository.save(partido);
-            }
+            partidoPrevia.setEstado(EstadoPartido.FINALIZADO); // El Bye no se juega
+            partidoRepository.save(siguiente);
+            partidoRepository.save(partidoPrevia);
         }
-        System.out.println("¡Playoffs del domingo vinculados con éxito!");
-    }
-    private Pareja buscarParejaPorOrigen(String origen, int cantidadZonas) {
-        // Si el origen es nulo o no es un clasificado de zona, no buscamos nada
-        if (origen == null || origen.equals("Ganador") || origen.equals("Bye")) return null;
 
-        // 1. Usamos el método de las letras (A, B, C...)
-        String origenTraducido = traducirJerarquia(origen, cantidadZonas);
+        // 2. El resto juega la primera ronda
+        int partidosRestantes = primeraRonda.size() - byes;
+        for (int i = byes; i < partidosRestantes; i++) {
+            int indicePartido = turnoArriba ? arriba++ : abajo--;
+            turnoArriba = !turnoArriba;
+            Partido pReal = primeraRonda.get(indicePartido);
 
-        // 2. Si el traductor nos dice que viene de una zona (ej: "1ro Zona A")
-        if (origenTraducido.contains("Zona")) {
-            int posicionBuscada = origenTraducido.startsWith("1ro") ? 1 : 2;
-            
-            // Extraemos la letra de la zona (la última letra del String)
-            String letraZona = origenTraducido.substring(origenTraducido.length() - 1);
-
-            // 3. Llamamos a la calculadora que usa tu PosicionZonaDTO
-            return obtenerParejaPorPosicionEnZona("Zona " + letraZona, posicionBuscada);
+            if (indiceClasificados < clasificados.size()) pReal.setPareja1(clasificados.get(indiceClasificados++));
+            if (indiceClasificados < clasificados.size()) pReal.setPareja2(clasificados.get(indiceClasificados++));
+            partidoRepository.save(pReal);
         }
-        
-        return null;
     }
-    @Transactional
-    public void generarCuadroDinamico(int cantidadParejas) {
-        int techo = calcularTechoCuadro(cantidadParejas);
-        int byes = calcularPrivilegiados(cantidadParejas, techo);
-        int partidosPrimeraRonda = (cantidadParejas - byes) / 2;
+    private int calcularSiguientePotenciaDeDos(int n) {
+        int p = 1;
+        while (p < n) p *= 2;
+        return p;
+    }
 
-        System.out.println("--- MOTOR DINÁMICO MADISON PADEL ---");
-        System.out.println("Parejas: " + cantidadParejas + " | Techo: " + techo);
-        System.out.println("Privilegiados (Byes): " + byes + " | Partidos Previa: " + partidosPrimeraRonda);
-
-        // 1. La semilla: La Gran Final
+    private FasePartido determinarFase(int n) {
+        return switch (n) {
+            case 1 -> FasePartido.FINAL;
+            case 2 -> FasePartido.SEMIFINAL;
+            case 4 -> FasePartido.CUARTOS;
+            case 8 -> FasePartido.OCTAVOS;
+            default -> FasePartido.ZONA;
+        };
+    }
+    private List<Partido> construirEsqueletoPlayoffs(int tamañoCuadro) {
+        // Creamos la Final
         Partido finalTorneo = partidoRepository.save(Partido.builder()
-                .fase(FasePartido.FINAL)
-                .estado(EstadoPartido.PENDIENTE)
-                .build());
+                .fase(FasePartido.FINAL).estado(EstadoPartido.PENDIENTE).build());
 
         List<Partido> rondaActual = List.of(finalTorneo);
-        FasePartido faseActual = FasePartido.FINAL;
+        int partidosEnRonda = 1;
 
-        // 2. Construimos el esqueleto principal hasta la "Sala de Espera" (techo / 4 partidos)
-        // Si el techo es 16, corta cuando arma los 4 partidos de Cuartos.
-        int salaDeEspera = techo / 4; 
-        
-        while (rondaActual.size() < salaDeEspera) {
-            faseActual = faseActual.faseAnterior();
+        // Vamos creando hacia atrás: Final -> Semis -> Cuartos...
+        while (partidosEnRonda < tamañoCuadro / 2) {
+            partidosEnRonda *= 2;
+            FasePartido fase = determinarFase(partidosEnRonda);
             List<Partido> rondaAnterior = new ArrayList<>();
 
-            for (Partido partidoDestino : rondaActual) {
-                Partido p1 = partidoRepository.save(Partido.builder().fase(faseActual).siguientePartido(partidoDestino).estado(EstadoPartido.PENDIENTE).build());
-                Partido p2 = partidoRepository.save(Partido.builder().fase(faseActual).siguientePartido(partidoDestino).estado(EstadoPartido.PENDIENTE).build());
+            for (Partido destino : rondaActual) {
+                Partido p1 = partidoRepository.save(Partido.builder().fase(fase).siguientePartido(destino).estado(EstadoPartido.PENDIENTE).build());
+                Partido p2 = partidoRepository.save(Partido.builder().fase(fase).siguientePartido(destino).estado(EstadoPartido.PENDIENTE).build());
                 rondaAnterior.add(p1);
                 rondaAnterior.add(p2);
             }
-            rondaActual = rondaAnterior; 
+            rondaActual = rondaAnterior;
         }
+        return rondaActual; // Devuelve los partidos de la primera fase (ej: Octavos)
+    }
+    @Transactional
+    public void generarPlayoffsDomingo(ConfiguracionTorneoDTO config) {
+        // 1. RECOLECCIÓN: Traemos a todos los que clasificaron (1ros, 2dos y 3ros si hay GSL)
+        List<Zona> zonas = zonaRepository.findAll();
+        List<Pareja> clasificados = obtenerClasificadosOrdenados(zonas);
 
-        // 3. LA TIJERA: Repartir Byes y armar la Primera Ronda
-        FasePartido fasePrevia = faseActual.faseAnterior();
-        int byesAsignados = 0;
-        int partidosPreviosCreados = 0;
-        int numeroClasificado = 1;
+        int totalClasificados = clasificados.size();
+        if (totalClasificados < 2) throw new IllegalStateException("No hay suficientes parejas.");
 
-        for (Partido partidoSalaEspera : rondaActual) {
-            
-            // Evaluamos la "Silla 1" de este partido
-            if (byesAsignados < byes) {
-                partidoSalaEspera.setOrigenPareja1("Clasificado " + numeroClasificado);
-                numeroClasificado++;
-                byesAsignados++;
-            } else if (partidosPreviosCreados < partidosPrimeraRonda) {
-                // ACA ESTA EL ARREGLO: Creamos el partido Y LE ASIGNAMOS LOS ORÍGENES
-                Partido pNuevo1 = Partido.builder()
-                        .fase(fasePrevia)
-                        .siguientePartido(partidoSalaEspera)
-                        .estado(EstadoPartido.PENDIENTE)
-                        .origenPareja1("Clasificado " + numeroClasificado++)
-                        .origenPareja2("Clasificado " + numeroClasificado++)
-                        .build();
-                partidoRepository.save(pNuevo1);
-                partidosPreviosCreados++;
-            }
+        // 2. MATEMÁTICA: ¿De qué tamaño es el cuadro? (8, 16, 32...)
+        int tamañoCuadro = calcularSiguientePotenciaDeDos(totalClasificados);
+        int cantidadByes = tamañoCuadro - totalClasificados;
 
-            // Evaluamos la "Silla 2" de este partido
-            if (byesAsignados < byes) {
-                partidoSalaEspera.setOrigenPareja2("Clasificado " + numeroClasificado);
-                numeroClasificado++;
-                byesAsignados++;
-            } else if (partidosPreviosCreados < partidosPrimeraRonda) {
-                // ACA ESTA EL ARREGLO PARA LA SILLA 2
-                Partido pNuevo2 = Partido.builder()
-                        .fase(fasePrevia)
-                        .siguientePartido(partidoSalaEspera)
-                        .estado(EstadoPartido.PENDIENTE)
-                        .origenPareja1("Clasificado " + numeroClasificado++)
-                        .origenPareja2("Clasificado " + numeroClasificado++)
-                        .build();
-                partidoRepository.save(pNuevo2);
-                partidosPreviosCreados++;
-            }
-            
-            partidoRepository.save(partidoSalaEspera);
-        }
+        // 3. ESQUELETO: Creamos los partidos vacíos enlazados
+        List<Partido> primeraRonda = construirEsqueletoPlayoffs(tamañoCuadro);
 
-        System.out.println("¡Cuadro dinámico generado y balanceado perfectamente!");
+        // 4. SIEMBRA: Acomodamos a los clasificados
+        acomodarParejasEnCuadro(primeraRonda, clasificados, cantidadByes);
+
+        // 5. HORARIOS: Usamos el planificador que ya tenés para poner orden al domingo
+        // (Podemos pasarle solo los partidos de playoff para que los acomode en las 2 canchas)
+        List<Partido> todosLosPlayoffs = partidoRepository.findByFaseNot(FasePartido.ZONA);
+        planificadorHorarioService.planificarDomingo(todosLosPlayoffs, config);
+        System.out.println("¡Cuadro de " + tamañoCuadro + " generado con " + cantidadByes + " Byes!");
     }
 
-        private int calcularTechoCuadro(int cantidadParejas) {
-            int techo = 2;
-            while (techo < cantidadParejas) {
-                techo *= 2; // Sube de 2 en 2, 4, 8, 16, 32...
-            }
-            return techo;
+    private List<Pareja> obtenerClasificadosOrdenados(List<Zona> zonas) {
+        List<Pareja> primeros = new ArrayList<>();
+        List<Pareja> segundos = new ArrayList<>();
+        List<Pareja> terceros = new ArrayList<>();
+
+        for (Zona zona : zonas) {
+            // Tu método obtenerParejaPorPosicionEnZona ya es perfecto, lo seguimos usando
+            Pareja p1 = obtenerParejaPorPosicionEnZona(zona.getNombre(), 1);
+            Pareja p2 = obtenerParejaPorPosicionEnZona(zona.getNombre(), 2);
+            Pareja p3 = obtenerParejaPorPosicionEnZona(zona.getNombre(), 3);
+
+            if (p1 != null) primeros.add(p1);
+            if (p2 != null) segundos.add(p2);
+            if (p3 != null) terceros.add(p3);
         }
 
-        private int calcularPrivilegiados(int cantidadParejas, int techo) {
-            return techo - cantidadParejas;
-        }
-        /**
-     * Traduce el texto "Clasificado X" a su verdadera posición y zona.
-     * Ej: "Clasificado 7" en un torneo de 6 zonas devuelve "2do Zona A".
-     */
-    private String traducirJerarquia(String origen, int cantidadZonas) {
-        if (!origen.startsWith("Clasificado ")) {
-            return origen; // Por si es "Ganador Semi 1", lo deja igual
-        }
-
-        // Sacamos el número (Ej: de "Clasificado 7" nos quedamos con el 7)
-        int numeroClasificado = Integer.parseInt(origen.replace("Clasificado ", ""));
-
-        int posicion = 1;
-        int indiceZona = numeroClasificado;
-
-        // Si el número es mayor a la cantidad de zonas, significa que estamos con los "2dos"
-        if (numeroClasificado > cantidadZonas) {
-            posicion = 2;
-            indiceZona = numeroClasificado - cantidadZonas; 
-            // Ej: 7 - 6 = 1 (Que corresponde a la Zona A)
-        }
-
-        // Convertimos el índice numérico a una letra (1 = A, 2 = B, 3 = C...)
-        char letraZona = (char) ('A' + (indiceZona - 1));
-        String sufijo = (posicion == 1) ? "ro" : "do";
-
-        return posicion + sufijo + " Zona " + letraZona;
+        List<Pareja> merito = new ArrayList<>();
+        merito.addAll(primeros);
+        merito.addAll(segundos);
+        merito.addAll(terceros);
+        return merito;
     }
-    /**
-     * Calcula la tabla de posiciones usando tu PosicionZonaDTO y devuelve la pareja.
-     */
     private Pareja obtenerParejaPorPosicionEnZona(String nombreZona, int posicionBuscada) {
         
         List<Partido> partidosZona = partidoRepository.findByZonaNombreAndFaseAndEstado(nombreZona, FasePartido.ZONA, EstadoPartido.FINALIZADO);
+        if(partidosZona.isEmpty()) return null;
+
+        Partido partidoGanadores = partidosZona.stream()
+                .filter(p -> "Ganador P1".equals(p.getOrigenPareja1()))
+                .findFirst()
+                .orElse(null);
+
+        // Si existe el partido de ganadores, es una zona de 4 y resolvemos por acá:
+        if (partidoGanadores != null) {
+            if(partidoGanadores.getGanador() == null|| partidoGanadores.getPareja1() == null || partidoGanadores.getPareja2() == null){
+                return null;
+            }
+            
+            if (posicionBuscada == 1) {
+                // El 1ro es directamente el ganador del Partido 3
+                return partidoGanadores.getGanador();
+            } 
+            
+            if (posicionBuscada == 2) {
+                // El 2do es el que jugó el Partido 3, pero NO ganó (el perdedor)
+                return partidoGanadores.getGanador().getId().equals(partidoGanadores.getPareja1().getId()) 
+                        ? partidoGanadores.getPareja2() 
+                        : partidoGanadores.getPareja1();
+            }
+
+            if (posicionBuscada == 3) {
+                // El 3ro es el ganador del Partido 4
+                Partido partidoPerdedores = partidosZona.stream()
+                        .filter(p -> "Perdedor P1".equals(p.getOrigenPareja1()))
+                        .findFirst()
+                        .orElse(null);
+                return partidoPerdedores != null ? partidoPerdedores.getGanador() : null;
+            }
+
+            // Si piden el 4to (eliminado) o una posición inválida
+            return null; 
+        }
+        
         Map<Long, PosicionZonaDTO> statsMap = new HashMap<>();
 
         for (Partido p : partidosZona) {

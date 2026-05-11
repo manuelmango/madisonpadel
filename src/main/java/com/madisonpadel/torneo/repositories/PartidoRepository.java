@@ -16,7 +16,7 @@ public interface PartidoRepository extends JpaRepository<Partido, Long> {
     // AGREGÁ ESTA LÍNEA NUEVA para la Calculadora:
     List<Partido> findByZonaNombreAndFaseAndEstado(String nombreZona, FasePartido fase, EstadoPartido estado);
     List<Partido> findByEstado(EstadoPartido estado);
-
+    List<Partido> findByFaseNot(FasePartido fase);
     long countByFaseNot(FasePartido fase);
 
 }

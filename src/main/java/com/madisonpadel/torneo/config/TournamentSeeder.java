@@ -32,7 +32,7 @@ public class TournamentSeeder implements CommandLineRunner {
                     .findFirst()
                     .orElseThrow(() -> new RuntimeException("No se encontró la categoría de prueba"));
 
-            for (int i = 1; i <= 12; i++) {
+            for (int i = 1; i <= 14; i++) {
                 // 1. Creamos dos jugadores por pareja
                 Jugador j1 = Jugador.builder()
                         .nombre("Jugador_" + i + "A")

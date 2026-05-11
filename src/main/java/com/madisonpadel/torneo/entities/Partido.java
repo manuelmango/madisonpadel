@@ -23,7 +23,7 @@ public class Partido {
     @ManyToOne
     @JoinColumn(name = "zona_id")
     private Zona zona;
-
+    
     // --- PROGRAMACIÓN ---
     @Enumerated(EnumType.STRING)
     private DiaTorneo dia;
@@ -44,6 +44,11 @@ public class Partido {
     @ManyToOne
     @JoinColumn(name = "siguiente_partido_id")
     private Partido siguientePartido;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "siguiente_partido_perdedor_id")
+    private Partido siguientePartidoPerdedor;
+
     // --- RESULTADOS MATEMÁTICOS ---
     // Inicializamos en 0 para evitar NullPointerExceptions
     @Builder.Default

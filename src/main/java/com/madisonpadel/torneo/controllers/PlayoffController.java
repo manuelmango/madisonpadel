@@ -1,9 +1,11 @@
 package com.madisonpadel.torneo.controllers;
 
+import com.madisonpadel.torneo.dtos.ConfiguracionTorneoDTO;
 import com.madisonpadel.torneo.services.PlayoffService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -14,9 +16,9 @@ public class PlayoffController {
 
     private final PlayoffService playoffService;
 
-    @PostMapping("/iniciar-domingo")
-    public ResponseEntity<String> arrancarPlayoffs() {
-        playoffService.iniciarDomingoDePlayoffs();
-        return ResponseEntity.ok("¡El puente se ha cruzado! Las parejas clasificadas ya están en sus llaves con horario y cancha asignados.");
+    @PostMapping("/playoffs/generar")
+    public ResponseEntity<String> generarPlayoffs(@RequestBody ConfiguracionTorneoDTO config) {
+        playoffService.generarPlayoffsDomingo(config);
+        return ResponseEntity.ok("Cuadro de domingo generado con éxito");
     }
 }
