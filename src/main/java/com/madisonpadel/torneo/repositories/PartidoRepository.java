@@ -17,4 +17,6 @@ public interface PartidoRepository extends JpaRepository<Partido, Long> {
     List<Partido> findByZonaNombreAndFaseAndEstado(String nombreZona, FasePartido fase, EstadoPartido estado);
     List<Partido> findByEstado(EstadoPartido estado);
 
+    long countByFaseNot(FasePartido fase);
+
 }

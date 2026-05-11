@@ -32,35 +32,36 @@ public class PlayoffService {
     private final ParejaRepository parejaRepository;
     private final ZonaRepository zonaRepository;
 
-
-
     @Transactional
     public void iniciarDomingoDePlayoffs() {
-        // 1. Traer la logística del club
+        // 1. Contar zonas para saber cuántas parejas clasifican (2 por zona)
+        int cantidadZonas = (int) zonaRepository.count(); 
+        int parejasClasificadas = cantidadZonas * 2; // Clasifican 1ros y 2dos
+
+        // 2. NUEVO: CREAR EL ESQUELETO (Si no existen ya partidos de playoff)
+        long yaExistenPlayoffs = partidoRepository.countByFaseNot(FasePartido.ZONA);
+        if (yaExistenPlayoffs == 0) {
+            System.out.println("Construyendo el cuadro para " + parejasClasificadas + " parejas...");
+            generarCuadroDinamico(parejasClasificadas);
+        }
+
+        // 3. Traer la logística del club
         DisponibilidadHoraria dispDomingo = disponibilidadHorariaService.obtenerPorDia(DiaTorneo.DOMINGO);
         
-        // 2. Buscar los partidos vacíos (Octavos, Dieciseisavos, etc.) que estén PENDIENTES
-        // Traemos todos los que no tengan parejas asignadas aún
+        // 4. AHORA SÍ: Traemos los partidos que acabamos de crear en el paso anterior
         List<Partido> partidosAProgramar = partidoRepository.findByEstado(EstadoPartido.PENDIENTE)
                 .stream()
-                .filter(p -> p.getFase() != FasePartido.ZONA) // Que no sean de grupos
-                .filter(p -> p.getPareja1() == null) // Que estén vacíos
+                .filter(p -> p.getFase() != FasePartido.ZONA)
+                .filter(p -> p.getPareja1() == null)
                 .toList();
-
-        // 3. Contar zonas para el traductor (Necesitás inyectar zonaRepository arriba)
-        int cantidadZonas = (int) zonaRepository.count(); 
 
         LocalTime horaActualTurno = dispDomingo.getHoraInicio();
         int canchaActual = 1;
 
         for (Partido partido : partidosAProgramar) {
-            
-            // --- LA CONEXIÓN MAESTRA ---
-            // Buscamos quiénes son las parejas reales para los textos "Clasificado 1", "Clasificado 2", etc.
             Pareja p1 = buscarParejaPorOrigen(partido.getOrigenPareja1(), cantidadZonas);
             Pareja p2 = buscarParejaPorOrigen(partido.getOrigenPareja2(), cantidadZonas);
             
-            // Solo programamos si encontramos a ambas parejas (o si no es un BYE)
             if (p1 != null && p2 != null) {
                 partido.setPareja1(p1);
                 partido.setPareja2(p2);
@@ -69,7 +70,6 @@ public class PlayoffService {
                 partido.setDia(DiaTorneo.DOMINGO);
                 partido.setEstado(EstadoPartido.PENDIENTE);
 
-                // Lógica de canchas y turnos
                 canchaActual++;
                 if (canchaActual > dispDomingo.getCantidadCanchas()) {
                     canchaActual = 1;
@@ -92,15 +92,15 @@ public class PlayoffService {
             int posicionBuscada = origenTraducido.startsWith("1ro") ? 1 : 2;
             
             // Extraemos la letra de la zona (la última letra del String)
-            String nombreZona = origenTraducido.substring(origenTraducido.length() - 1);
+            String letraZona = origenTraducido.substring(origenTraducido.length() - 1);
 
             // 3. Llamamos a la calculadora que usa tu PosicionZonaDTO
-            return obtenerParejaPorPosicionEnZona(nombreZona, posicionBuscada);
+            return obtenerParejaPorPosicionEnZona("Zona " + letraZona, posicionBuscada);
         }
         
         return null;
     }
-@Transactional
+    @Transactional
     public void generarCuadroDinamico(int cantidadParejas) {
         int techo = calcularTechoCuadro(cantidadParejas);
         int byes = calcularPrivilegiados(cantidadParejas, techo);
@@ -137,10 +137,10 @@ public class PlayoffService {
         }
 
         // 3. LA TIJERA: Repartir Byes y armar la Primera Ronda
-        FasePartido fasePrevia = faseActual.faseAnterior(); // Ej: Si estamos en Cuartos, la previa es Octavos
+        FasePartido fasePrevia = faseActual.faseAnterior();
         int byesAsignados = 0;
         int partidosPreviosCreados = 0;
-        int numeroClasificado = 1; // Para etiquetar: "Clasificado 1", "Clasificado 2"
+        int numeroClasificado = 1;
 
         for (Partido partidoSalaEspera : rondaActual) {
             
@@ -150,7 +150,15 @@ public class PlayoffService {
                 numeroClasificado++;
                 byesAsignados++;
             } else if (partidosPreviosCreados < partidosPrimeraRonda) {
-                partidoRepository.save(Partido.builder().fase(fasePrevia).siguientePartido(partidoSalaEspera).estado(EstadoPartido.PENDIENTE).build());
+                // ACA ESTA EL ARREGLO: Creamos el partido Y LE ASIGNAMOS LOS ORÍGENES
+                Partido pNuevo1 = Partido.builder()
+                        .fase(fasePrevia)
+                        .siguientePartido(partidoSalaEspera)
+                        .estado(EstadoPartido.PENDIENTE)
+                        .origenPareja1("Clasificado " + numeroClasificado++)
+                        .origenPareja2("Clasificado " + numeroClasificado++)
+                        .build();
+                partidoRepository.save(pNuevo1);
                 partidosPreviosCreados++;
             }
 
@@ -160,11 +168,18 @@ public class PlayoffService {
                 numeroClasificado++;
                 byesAsignados++;
             } else if (partidosPreviosCreados < partidosPrimeraRonda) {
-                partidoRepository.save(Partido.builder().fase(fasePrevia).siguientePartido(partidoSalaEspera).estado(EstadoPartido.PENDIENTE).build());
+                // ACA ESTA EL ARREGLO PARA LA SILLA 2
+                Partido pNuevo2 = Partido.builder()
+                        .fase(fasePrevia)
+                        .siguientePartido(partidoSalaEspera)
+                        .estado(EstadoPartido.PENDIENTE)
+                        .origenPareja1("Clasificado " + numeroClasificado++)
+                        .origenPareja2("Clasificado " + numeroClasificado++)
+                        .build();
+                partidoRepository.save(pNuevo2);
                 partidosPreviosCreados++;
             }
             
-            // Actualizamos el partido de la sala de espera por si le seteamos un "Clasificado"
             partidoRepository.save(partidoSalaEspera);
         }
 

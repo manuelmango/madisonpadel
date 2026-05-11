@@ -2,6 +2,7 @@ package com.madisonpadel.torneo.services;
 
 import com.madisonpadel.torneo.entities.*;
 import com.madisonpadel.torneo.entities.enums.EstadoPartido;
+import com.madisonpadel.torneo.entities.enums.FasePartido;
 import com.madisonpadel.torneo.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -118,6 +119,7 @@ public void generarZonasPorCategoria(Long categoriaId) {
                 .pareja2(p2)
                 .dia(dia) 
                 .hora(hora)
+                .fase(FasePartido.ZONA)
                 .estado(EstadoPartido.PENDIENTE)
                 .build();
     }
