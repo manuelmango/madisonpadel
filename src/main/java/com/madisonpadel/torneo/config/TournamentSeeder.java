@@ -24,7 +24,7 @@ public class TournamentSeeder implements CommandLineRunner {
         
         // Solo creamos datos si la base está vacía (evita duplicados al reiniciar)
         if (parejaRepository.count() == 0) {
-            System.out.println("🌱 [TournamentSeeder] Generando 12 parejas para probar el Motor...");
+            System.out.println("🌱 [TournamentSeeder] Generando 15 parejas para probar el Motor...");
 
             // Buscamos la 7ma Caballeros que creó el DataInitializer
             Categoria cat7ma = categoriaRepository.findAll().stream()
@@ -32,7 +32,7 @@ public class TournamentSeeder implements CommandLineRunner {
                     .findFirst()
                     .orElseThrow(() -> new RuntimeException("No se encontró la categoría de prueba"));
 
-            for (int i = 1; i <= 14; i++) {
+            for (int i = 1; i <= 15; i++) {
                 // 1. Creamos dos jugadores por pareja
                 Jugador j1 = Jugador.builder()
                         .nombre("Jugador_" + i + "A")

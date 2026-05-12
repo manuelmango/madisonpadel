@@ -35,39 +35,56 @@ public class PlayoffService {
     private final ZonaRepository zonaRepository;
 
     private void acomodarParejasEnCuadro(List<Partido> primeraRonda, List<Pareja> clasificados, int byes) {
+        int totalPartidos = primeraRonda.size();
+    
+        // 1. Generamos el orden correcto según el tamaño de la llave (Evita que se pisen)
+        int[] ordenSiembra;
+        if (totalPartidos == 8) {
+            ordenSiembra = new int[]{0, 7, 4, 3, 2, 5, 6, 1}; // Distribución para Octavos
+        } else if (totalPartidos == 4) {
+            ordenSiembra = new int[]{0, 3, 1, 2}; // Distribución para Cuartos
+        } else if (totalPartidos == 2) {
+            ordenSiembra = new int[]{0, 1}; // Distribución para Semis
+        } else {
+            ordenSiembra = new int[]{0}; // Final
+        }
         int indiceClasificados = 0;
        
-        // --- LA MAGIA DE LOS DOS PUNTEROS ---
-        int arriba = 0; // Apunta al primer renglón
-        int abajo = primeraRonda.size() - 1; // Apunta al último renglón
-        boolean turnoArriba = true; // Alternador
         // 1. Sentamos a los privilegiados (Byes) directamente en la SEGUNDA ronda
         for (int i = 0; i < byes; i++) {
             Pareja privilegiada = clasificados.get(indiceClasificados++);
             // Elegimos de qué lado del árbol sacar el partido
-            int indicePartido = turnoArriba ? arriba++ : abajo--;
-            turnoArriba = !turnoArriba; // Cambiamos el turno para la próxima pareja
-            Partido partidoPrevia = primeraRonda.get(indicePartido);
-            Partido siguiente = partidoPrevia.getSiguientePartido();
-
-            if (siguiente.getPareja1() == null) siguiente.setPareja1(privilegiada);
-            else siguiente.setPareja2(privilegiada);
+            int indicePartido = ordenSiembra[i];
             
-            partidoPrevia.setEstado(EstadoPartido.FINALIZADO); // El Bye no se juega
+            Partido partidoBye = primeraRonda.get(indicePartido);
+            Partido siguiente = partidoBye.getSiguientePartido();
+
+            if (siguiente.getPareja1() == null){
+                siguiente.setPareja1(privilegiada);
+            } 
+            else{
+                siguiente.setPareja2(privilegiada);
+            } 
+            partidoBye.setEstado(EstadoPartido.FINALIZADO); // El Bye no se juega
             partidoRepository.save(siguiente);
-            partidoRepository.save(partidoPrevia);
+            partidoRepository.save(partidoBye);
         }
 
         // 2. El resto juega la primera ronda
-        int partidosRestantes = primeraRonda.size() - byes;
-        for (int i = byes; i < partidosRestantes; i++) {
-            int indicePartido = turnoArriba ? arriba++ : abajo--;
-            turnoArriba = !turnoArriba;
-            Partido pReal = primeraRonda.get(indicePartido);
-
-            if (indiceClasificados < clasificados.size()) pReal.setPareja1(clasificados.get(indiceClasificados++));
-            if (indiceClasificados < clasificados.size()) pReal.setPareja2(clasificados.get(indiceClasificados++));
-            partidoRepository.save(pReal);
+        int peorClasificado = clasificados.size() - 1;
+        for (int i = byes; i < totalPartidos; i++) {
+            int indicePartido = ordenSiembra[i];
+            Partido partido = primeraRonda.get(indicePartido);
+            if(partido.getEstado() == EstadoPartido.FINALIZADO){
+                continue;
+            }
+            if (indiceClasificados <= peorClasificado){
+                partido.setPareja1(clasificados.get(indiceClasificados++));
+            } 
+            if(indiceClasificados <= peorClasificado){
+                partido.setPareja2(clasificados.get(peorClasificado--));
+            }
+            partidoRepository.save(partido);
         }
     }
     private int calcularSiguientePotenciaDeDos(int n) {
@@ -237,6 +254,9 @@ public class PlayoffService {
         List<PosicionZonaDTO> tablaPosiciones = new ArrayList<>(statsMap.values());
         Collections.sort(tablaPosiciones); // ¡Usa tu compareTo!
 
+        if(tablaPosiciones.size() == 3 && posicionBuscada == 3){
+            return null;
+        }
         // Devolvemos la pareja solicitada
         if (tablaPosiciones.size() >= posicionBuscada) {
             Long idParejaClasificada = tablaPosiciones.get(posicionBuscada - 1).getParejaId();
