@@ -18,4 +18,6 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
 
     // Por si en algún momento en la app querés mostrar un filtro: "Solo categorías de Damas"
     List<Categoria> findByGenero(Genero genero);
+
+    List<Categoria> findByTorneoId(Long torneoId);
 }

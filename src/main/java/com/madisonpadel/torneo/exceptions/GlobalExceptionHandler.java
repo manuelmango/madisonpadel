@@ -37,6 +37,7 @@ public class GlobalExceptionHandler {
     // El salvavidas final: Ataja CUALQUIER otro error no previsto (Error 500)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
+        ex.printStackTrace();
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Internal Server Error",

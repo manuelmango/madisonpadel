@@ -4,6 +4,8 @@ import com.madisonpadel.torneo.dtos.ResultadoRequestDTO;
 import com.madisonpadel.torneo.entities.Pareja;
 import com.madisonpadel.torneo.entities.Partido;
 import com.madisonpadel.torneo.entities.enums.EstadoPartido;
+import com.madisonpadel.torneo.exceptions.ReglaNegocioException;
+import com.madisonpadel.torneo.exceptions.ResourceNotFoundException;
 import com.madisonpadel.torneo.repositories.PartidoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -20,11 +22,11 @@ public class PartidoService {
         
         // 1. Buscamos el partido
         Partido partido = partidoRepository.findById(partidoId)
-                .orElseThrow(() -> new IllegalArgumentException("El partido no existe."));
+                .orElseThrow(() -> new ResourceNotFoundException("El partido no existe."));
 
         // 2. Validamos que no se esté cargando un partido ya finalizado
         if (partido.estaTerminado()) {
-            throw new IllegalStateException("Este partido ya tiene un resultado cargado.");
+            throw new ReglaNegocioException("Este partido ya tiene un resultado cargado.");
         }
 
         // 3. Guardamos los números
@@ -44,7 +46,7 @@ public class PartidoService {
             parejaGanadora = partido.getPareja2();
             parejaPerdedora = partido.getPareja1();
         } else {
-            throw new IllegalArgumentException("Error: En el pádel no existen los empates. Revisá los sets ingresados.");
+            throw new ReglaNegocioException("Error: En el pádel no existen los empates. Revisá los sets ingresados.");
         }
         // Guardamos al ganador en la entidad como ya lo hacías
         partido.setGanador(parejaGanadora);

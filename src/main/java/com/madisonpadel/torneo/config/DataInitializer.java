@@ -10,7 +10,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-
+import com.madisonpadel.torneo.entities.Torneo;
+import com.madisonpadel.torneo.entities.enums.EstadoTorneo;
+import com.madisonpadel.torneo.repositories.TorneoRepository;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -18,7 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Order(1)
 public class DataInitializer implements CommandLineRunner {
-
+    private final TorneoRepository torneoRepository;
     private final CategoriaRepository categoriaRepository;
     // 1. Agregamos el repositorio de Disponibilidad
     private final DisponibilidadHorariaRepository disponibilidadHorariaRepository; 
@@ -48,7 +51,24 @@ public class DataInitializer implements CommandLineRunner {
             categoriaRepository.saveAll(categoriasIniciales);
             System.out.println(">> Base de datos inicializada: Categorías creadas.");
         }
+            // Al final del bloque de categorías, ANTES del bloque de horarios, agregar:
+        if (torneoRepository.count() == 0) {
+        // Creamos un torneo de prueba
+            Torneo torneoDemo = Torneo.builder()
+                .nombre("Torneo Mayo 2026")
+                .fechaInicio(LocalDate.of(2026, 5, 15))
+                .fechaFin(LocalDate.of(2026, 5, 17))
+                .estado(EstadoTorneo.EN_JUEGO)
+                .build();
+            torneoRepository.save(torneoDemo);
 
+            // Buscamos las categorías ya creadas y las vinculamos al torneo
+            categoriaRepository.findAll().forEach(cat -> {
+                cat.setTorneo(torneoDemo);
+                categoriaRepository.save(cat);
+        });
+        System.out.println(">> Torneo de prueba creado y categorías vinculadas.");
+        }
         // --- INICIALIZAR DISPONIBILIDAD HORARIA DEL CLUB ---
         if (disponibilidadHorariaRepository.count() == 0) {
             List<DisponibilidadHoraria> horariosClub = List.of(
@@ -83,5 +103,6 @@ public class DataInitializer implements CommandLineRunner {
             disponibilidadHorariaRepository.saveAll(horariosClub);
             System.out.println(">> Base de datos inicializada: Horarios del club configurados.");
         }
+   
     }
 }

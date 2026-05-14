@@ -1,11 +1,15 @@
 package com.madisonpadel.torneo.controllers;
 
 import com.madisonpadel.torneo.dtos.ConfiguracionTorneoDTO;
+import com.madisonpadel.torneo.entities.Torneo;
+import com.madisonpadel.torneo.entities.enums.EstadoTorneo;
+import com.madisonpadel.torneo.repositories.TorneoRepository;
 import com.madisonpadel.torneo.services.PlayoffService;
 import com.madisonpadel.torneo.services.ZonaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/torneos")
@@ -14,7 +18,29 @@ public class TorneoController {
 
     private final ZonaService zonaService;
     private final PlayoffService playoffService;
+    private final TorneoRepository torneoRepository;
 
+    @GetMapping
+    public ResponseEntity<List<Torneo>> listarTodos() {
+        return ResponseEntity.ok(torneoRepository.findAll());
+    }
+
+    @GetMapping("/activos")
+    public ResponseEntity<List<Torneo>> listarActivos() {
+        return ResponseEntity.ok(torneoRepository.findByEstado(EstadoTorneo.EN_JUEGO));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Torneo> obtenerPorId(@PathVariable Long id) {
+        return torneoRepository.findById(id)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    public ResponseEntity<Torneo> crearTorneo(@RequestBody Torneo torneo) {
+        return ResponseEntity.status(201).body(torneoRepository.save(torneo));
+    }
     /**
      * Endpoint para el "Viernes": Genera los grupos de una categoría
      * aplicando ranking y restricciones horarias.
