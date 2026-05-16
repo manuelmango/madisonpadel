@@ -1,8 +1,10 @@
 package com.madisonpadel.torneo.controllers;
 
 import com.madisonpadel.torneo.dtos.ConfiguracionTorneoDTO;
+import com.madisonpadel.torneo.entities.Categoria;
 import com.madisonpadel.torneo.entities.Torneo;
 import com.madisonpadel.torneo.entities.enums.EstadoTorneo;
+import com.madisonpadel.torneo.repositories.CategoriaRepository;
 import com.madisonpadel.torneo.repositories.TorneoRepository;
 import com.madisonpadel.torneo.services.PlayoffService;
 import com.madisonpadel.torneo.services.ZonaService;
@@ -19,7 +21,26 @@ public class TorneoController {
     private final ZonaService zonaService;
     private final PlayoffService playoffService;
     private final TorneoRepository torneoRepository;
-
+    private final CategoriaRepository categoriaRepository;
+    @PatchMapping("/{id}/archivar")
+    public ResponseEntity<Torneo> archivar(@PathVariable Long id) {
+        return torneoRepository.findById(id)
+            .map(t -> {
+                t.setEstado(EstadoTorneo.FINALIZADO);
+                return ResponseEntity.ok(torneoRepository.save(t));
+            })
+            .orElse(ResponseEntity.notFound().build());
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        try{
+            torneoRepository.deleteById(id);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e){
+            return ResponseEntity.status(500).build();
+        }
+    }
     @GetMapping
     public ResponseEntity<List<Torneo>> listarTodos() {
         return ResponseEntity.ok(torneoRepository.findAll());
@@ -46,15 +67,26 @@ public class TorneoController {
      * aplicando ranking y restricciones horarias.
      */
     @PostMapping("/categorias/{categoriaId}/zonas")
-    public ResponseEntity<?> generarZonas(@PathVariable Long categoriaId,@RequestBody ConfiguracionTorneoDTO config ) {
+    public ResponseEntity<?> generarZonas(@PathVariable Long categoriaId) {
         try {
+            Categoria categoria = categoriaRepository.findById(categoriaId)
+                .orElseThrow(() -> new IllegalArgumentException("Categoría no encontrada"));
+            
+            Torneo torneo = categoria.getTorneo();
+
+            ConfiguracionTorneoDTO config = new ConfiguracionTorneoDTO();
+            config.setInicioViernes(torneo.getInicioViernes());
+            config.setFinViernes(torneo.getFinViernes());
+            config.setInicioSabado(torneo.getInicioSabado());
+            config.setFinSabado(torneo.getFinSabado());
+            config.setInicioDomingo(torneo.getInicioDomingo());
+            config.setFinDomingo(torneo.getFinDomingo());
+
             zonaService.generarZonasPorCategoria(categoriaId, config);
             return ResponseEntity.ok("Zonas generadas con éxito para la categoría. Se han respetado los rankings y bloqueos horarios.");
         } catch (IllegalArgumentException e) {
-            // Caso: La categoría no existe o no tiene suficientes parejas
             return ResponseEntity.badRequest().body("Error en la solicitud: " + e.getMessage());
         } catch (Exception e) {
-            // Error genérico para no romper la app
             return ResponseEntity.internalServerError().body("Error interno al procesar las zonas: " + e.getMessage());
         }
     }

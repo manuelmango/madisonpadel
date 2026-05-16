@@ -49,4 +49,19 @@ public class CategoriaController {
         categoriaRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
+    @PatchMapping("/{id}/torneo/{torneoId}")
+    public ResponseEntity<Categoria> vincularTorneo(
+        @PathVariable Long id, 
+        @PathVariable Long torneoId) {
+    
+    Torneo torneo = torneoRepository.findById(torneoId)
+        .orElseThrow(() -> new IllegalArgumentException("Torneo no encontrado"));
+    
+    return categoriaRepository.findById(id)
+        .map(cat -> {
+            cat.setTorneo(torneo);
+            return ResponseEntity.ok(categoriaRepository.save(cat));
+        })
+        .orElse(ResponseEntity.notFound().build());
+    }
 }

@@ -25,7 +25,24 @@ public class DataInitializer implements CommandLineRunner {
     private final CategoriaRepository categoriaRepository;
     // 1. Agregamos el repositorio de Disponibilidad
     private final DisponibilidadHorariaRepository disponibilidadHorariaRepository; 
-
+    List<Categoria> categoriasIniciales = List.of(
+    // CABALLEROS
+    Categoria.builder().nombre("1ra Caballeros").nivel(1).genero(Genero.MASCULINO).build(),
+    Categoria.builder().nombre("2da Caballeros").nivel(2).genero(Genero.MASCULINO).build(),
+    Categoria.builder().nombre("3ra Caballeros").nivel(3).genero(Genero.MASCULINO).build(),
+    Categoria.builder().nombre("4ta Caballeros").nivel(4).genero(Genero.MASCULINO).build(),
+    Categoria.builder().nombre("5ta Caballeros").nivel(5).genero(Genero.MASCULINO).build(),
+    Categoria.builder().nombre("6ta Caballeros").nivel(6).genero(Genero.MASCULINO).build(),
+    Categoria.builder().nombre("7ma Caballeros").nivel(7).genero(Genero.MASCULINO).build(),
+    Categoria.builder().nombre("8va Caballeros").nivel(8).genero(Genero.MASCULINO).build(),
+    // DAMAS
+    Categoria.builder().nombre("3ra Damas").nivel(3).genero(Genero.FEMENINO).build(),
+    Categoria.builder().nombre("4ta Damas").nivel(4).genero(Genero.FEMENINO).build(),
+    Categoria.builder().nombre("5ta Damas").nivel(5).genero(Genero.FEMENINO).build(),
+    Categoria.builder().nombre("6ta Damas").nivel(6).genero(Genero.FEMENINO).build(),
+    Categoria.builder().nombre("7ma Damas").nivel(7).genero(Genero.FEMENINO).build(),
+    Categoria.builder().nombre("8va Damas").nivel(8).genero(Genero.FEMENINO).build()
+);
     @Override
     public void run(String... args) {
         

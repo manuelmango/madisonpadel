@@ -22,13 +22,15 @@ public class ZonaService {
     private final PartidoRepository partidoRepository;
     private final PlanificadorHorarioService planificadorHorarioService;
     private final ZonaRepository zonaRepository;
+    private final CategoriaRepository categoriaRepository;
 
-    private List<Zona> crearZonasVacias(int cantidad) {
+    private List<Zona> crearZonasVacias(int cantidad, Categoria categoria) {
         List<Zona> zonas = new ArrayList<>();
         for (int i = 0; i < cantidad; i++) {
             char letra = (char) ('A' + i);
             zonas.add(Zona.builder()
                     .nombre("Zona " + letra)
+                    .categoria(categoria)
                     .parejas(new ArrayList<>())
                     .partidos(new ArrayList<>())
                     .build());
@@ -38,6 +40,8 @@ public class ZonaService {
     @Transactional
     public void generarZonasPorCategoria(Long categoriaId, ConfiguracionTorneoDTO config) {
         // 1. Traemos a todos ordenados por el Ranking real de Madison Padel
+        Categoria categoria = categoriaRepository.findById(categoriaId)
+            .orElseThrow(() -> new IllegalArgumentException("Categoría no encontrada"));
         List<Pareja> rankingParejas = parejaRepository.findByCategoriaId(categoriaId)
                 .stream()
                 .sorted(Comparator.comparingInt(Pareja::getPuntosTotales).reversed())
@@ -45,7 +49,7 @@ public class ZonaService {
 
         int totalParejas = rankingParejas.size();
         int cantidadZonas = totalParejas / 3;
-        List<Zona> zonas = crearZonasVacias(cantidadZonas);
+        List<Zona> zonas = crearZonasVacias(cantidadZonas, categoria);
 
         // 2. ASIGNACIÓN DE "SLOTS" A LAS ZONAS
         // Zonas Altas (A, B, C...) -> Sábado

@@ -4,14 +4,18 @@ import com.madisonpadel.torneo.dtos.NuevoJugadorDTO;
 import com.madisonpadel.torneo.entities.Jugador;
 import com.madisonpadel.torneo.repositories.JugadorRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-
+import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class JugadorService {
 
     private final JugadorRepository jugadorRepository;
-
+    public List<Jugador> findAll() {
+        return jugadorRepository.findAll(Sort.by("apellido", "nombre"));
+    }
     /**
      * Recibe el DTO, valida que el DNI no exista y guarda al jugador.
      */

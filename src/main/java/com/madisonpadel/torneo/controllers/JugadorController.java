@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import java.util.List;
 @RestController
 @RequestMapping("/api/jugadores")
 @RequiredArgsConstructor
@@ -28,5 +28,9 @@ public class JugadorController {
             // Si el Service saltó porque el teléfono estaba duplicado, atajamos el error acá
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+    @GetMapping
+    public ResponseEntity<List<Jugador>> listarTodos() {
+        return ResponseEntity.ok(jugadorService.findAll());
     }
 }
